@@ -34,22 +34,19 @@ RoutingTable::lookup(uint32_t ip) const
 {
 
   // FILL THIS IN
-  // std::cerr << "looking up for ip: " << ipToString(ip) << std::endl;
-  RoutingTableEntry longest_match;
-  uint32_t longest = 0;
+  std::cerr << std::endl;
+  RoutingTableEntry longest_match = m_entries.front();
   for(const auto& entry : m_entries) {
-    // std::cerr << "  " << ipToString(entry.dest) << " | " << ipToString(entry.mask) << std::endl;
-    uint32_t match = ip & entry.mask;
-    match = match & entry.dest;
-    if(match > longest) {
-      longest = match;
+    // std::cerr << "compare \nentry: " << ipToString(entry.dest) << " | " << ipToString(entry.mask) << "\nlongest: "  << ipToString(longest_match.gw) << std::endl;
+    if((ip & entry.mask & entry.dest) >= (ip & entry.mask & longest_match.gw)) {
       longest_match = entry;
     }
+    // std::cerr << "  result: " << ipToString(match) << std::endl;
+    // std::cerr << "  longest: " << ipToString(longest) << " " << ipToString(longest_match.gw) << std::endl;
   }
-  if(longest > 0){
-    // std::cerr << "final match: " << ipToString(longest_match.dest) << " | " << ipToString(longest_match.mask) << std::endl;
-    return longest_match;
-  }
+
+  // std::cerr << std::endl << "ip: " << ipToString(ip) << " match with " << ipToString(longest_match.gw) << " | " << longest_match.ifName << std:: endl << std::endl;
+  return longest_match;
   
   throw std::runtime_error("Routing entry not found");
 }

@@ -38,10 +38,12 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
 
   std::cerr << getRoutingTable() << std::endl;
 
+
+
   // FILL THIS IN
 
-  std::cerr << "===========" << std::endl << "received packet: " << std::endl;
-  print_hdrs(packet);
+  // std::cerr << "===========" << std::endl << "received packet" << std::endl;
+  // print_hdrs(packet);
 
   // check if type if IPv4
   ethernet_hdr* ethernet_header = (ethernet_hdr*)packet.data();
@@ -76,14 +78,15 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
   }
   uint16_t og_ipv4_checksum = ipv4_header->ip_sum;
   ipv4_header->ip_sum = 0;
-  uint16_t ipv4_checksum = cksum(ipv4_header, sizeof(ip_hdr));
-  if(og_ipv4_checksum != ipv4_checksum) {
+  ipv4_header->ip_sum = cksum(ipv4_header, sizeof(ip_hdr));
+  if(og_ipv4_checksum != ipv4_header->ip_sum) {
     std::cerr << "Invalid IP chechsun, discard" << std::endl;
     return;
   }
 
   // check dest ip
   const Interface* match_interface = findIfaceByIp(ipv4_header->ip_dst);
+  // std::cerr << "  From IP " << ipToString(ipv4_header->ip_src) << " /MAC " << macToString(ethernet_header->ether_shost) << std::endl << "  To IP " << ipToString(ipv4_header->ip_dst) << "/MAC " << macToString(ethernet_header->ether_dhost) << std::endl;
   if(match_interface != nullptr) {
     // destined to the router 
     if(ipv4_header->ip_p == ip_protocol_icmp) {
@@ -114,7 +117,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
         return;
       }
       */
-      auto arp_entry = m_arp.lookup(reply_hop.gw);
+      // auto arp_entry = m_arp.lookup(reply_hop.gw);
       ethernet_hdr* reply_ethernet_header = (ethernet_hdr*)reply_packet.data();
       ip_hdr* reply_ipv4_header = (ip_hdr*)(reply_packet.data() + sizeof(ethernet_hdr));
       icmp_hdr* reply_icmp_header = (icmp_hdr*)(reply_packet.data() + sizeof(ethernet_hdr) + sizeof(ip_hdr));
@@ -131,7 +134,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
       reply_ipv4_header->ip_sum = 0;
       reply_ipv4_header->ip_sum = cksum(reply_ipv4_header, sizeof(ip_hdr));
       reply_icmp_header->icmp_type = 0;
-      reply_icmp_header->icmp_code = 0;
+      // reply_icmp_header->icmp_code = 0;
       reply_icmp_header->icmp_sum = 0;
       reply_icmp_header->icmp_sum = cksum(reply_icmp_header, packet.size() - sizeof(ethernet_hdr) - sizeof(ip_hdr));
       
@@ -143,8 +146,8 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
       }
       */
       sendPacket(reply_packet, iface->name);
-      // std::cerr << "Reply packet: " << std:endl;
-      // print_hdrs(reply_packet);
+      std::cerr << "Reply packet: " << std::endl;
+      print_hdrs(reply_packet);
     }
     else {
       std::cerr << "Not ICMP, discard" << std::endl;
@@ -153,33 +156,35 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
   }
   else {
     // forward
-    ipv4_header->ip_ttl -= 1;
-    if(ipv4_header->ip_ttl <= 0) {
+    if(ipv4_header->ip_ttl <= 1) {
       std::cerr << "IPv4 TTL 0, discard" << std::endl;
       return;
     }
+    ipv4_header->ip_ttl -= 1;
     RoutingTableEntry next_hop;
     try {
       next_hop = m_routingTable.lookup(ipv4_header->ip_dst);
     }
     catch(std::runtime_error& err) {
-      std::cerr << "Routing table runtime error: " << err.what() << std::endl;
+      std::cerr << "Routing table runtime error: " << std::endl;
       return;
     }
     const Interface* out_interface = findIfaceByName(next_hop.ifName);
+    // std::cerr << "out interface: " << out_interface->name << " | " << ipToString(out_interface->ip) << " | " << macToString(out_interface->addr.data()) << std::endl;
+    ipv4_header->ip_sum = 0;
+    ipv4_header->ip_sum = cksum(ipv4_header, sizeof(ip_hdr));
     auto arp_entry = m_arp.lookup(next_hop.gw);
     if(!arp_entry) {
       m_arp.queueRequest(next_hop.gw, packet, next_hop.ifName);
     }
     else{
-      memcpy(ethernet_header->ether_shost, &out_interface->addr, sizeof(ethernet_header->ether_shost));
-      memcpy(ethernet_header->ether_dhost, &arp_entry->mac, sizeof(ethernet_header->ether_dhost));
-      ethernet_header->ether_type = htons(ethertype_ip);
-      // ipv4_header->ip_sum = 0;
-      // ipv4_header->ip_sum = cksum(ipv4_header, sizeof(ip_hdr));
+      // std::cerr << std::endl << "dest interface: " << ipToString(arp_entry->ip) << " | " << macToString(arp_entry->mac) << std::endl << std::endl;
+      memcpy(ethernet_header->ether_shost, out_interface->addr.data(), sizeof(ethernet_header->ether_shost));
+      memcpy(ethernet_header->ether_dhost, arp_entry->mac.data(), sizeof(ethernet_header->ether_dhost));
       sendPacket(packet, next_hop.ifName);
     }
-    // std:: cerr << "Forward packet: " << std:: endl;
+    // std:: cerr << std::endl << "Forward packet: " << std:: endl;
+    // std::cerr << "  From IP " << ipToString(ipv4_header->ip_src) << " /MAC " << macToString(ethernet_header->ether_shost) << std::endl << "  To IP " << ipToString(ipv4_header->ip_dst) << "/MAC " << macToString(ethernet_header->ether_dhost) << std::endl << "==========" << std::endl << std::endl;
     // print_hdrs(packet);
   }
 }

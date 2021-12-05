@@ -5,7 +5,6 @@ LDFLAGS=-L. -lIce -lboost_system -larpcache -pthread
 SLICE_INCLUDES=-I/usr/share/ice/slice
 
 USERID=905549872
-USERID2=705543418
 
 CLASSES=build/pox.o routing-table.o simple-router.o core/utils.o core/interface.o core/dumper.o
 
