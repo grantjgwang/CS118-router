@@ -38,7 +38,8 @@ RoutingTable::lookup(uint32_t ip) const
   RoutingTableEntry longest_match = m_entries.front();
   for(const auto& entry : m_entries) {
     // std::cerr << "compare \nentry: " << ipToString(entry.dest) << " | " << ipToString(entry.mask) << "\nlongest: "  << ipToString(longest_match.gw) << std::endl;
-    if((ip & entry.mask & entry.dest) >= (ip & entry.mask & longest_match.gw)) {
+    if((ip & entry.mask & entry.dest) > (ip & entry.mask & longest_match.gw)) {
+    // if((~((ip ^ entry.dest) & entry.mask)) > (~((ip ^ longest_match.gw) & entry.mask))) {
       longest_match = entry;
     }
     // std::cerr << "  result: " << ipToString(match) << std::endl;
