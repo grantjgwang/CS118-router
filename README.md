@@ -1,8 +1,6 @@
 UCLA CS118 Project (Simple Router)
 ====================================
 
-Name: Jenggang Wang (UID: 905549872)
-
 | Assignments           |  Grade  |
 | --------------------- |:-------:|
 | HW 1                  |   47    |
